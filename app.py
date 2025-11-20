@@ -177,7 +177,7 @@ with st.sidebar:
 col_main, = st.columns(1)
 with col_main:
     st.markdown("""
-        <h1 style='text-align: center;'>✈️ AI海外旅行コンシェルジュ Premium</h1>
+        <h1 style='text-align: center;'>✈️ 海外旅行コンシェルジュ </h1>
     """, unsafe_allow_html=True)
     
     st.markdown("""
