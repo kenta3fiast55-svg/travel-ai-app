@@ -9,23 +9,11 @@ st.title("✈️ AI海外旅行コンシェルジュ")
 st.write("いくつかの質問に答えるだけで、あなたにぴったりの海外旅行先をAIが提案します！")
 st.markdown("---")
 
-# APIキーの設定（後で設定画面に入力します）
-# セキュリティのため、コードには直接書き込まず、Streamlitの機能を使います
-if "openai_api_key" not in st.session_state:
-    st.session_state["openai_api_key"] = ""
-
-# サイドバー（画面左側）の設定
+# サイドバー（設定画面は削除し、説明のみ表示）
 with st.sidebar:
-    st.header("設定")
-    openai_api_key = st.text_input("OpenAI APIキーを入力", key="chatbot_api_key", type="password")
-    st.markdown("[APIキーの取得はこちら](https://platform.openai.com/account/api-keys)")
-    
-    st.markdown("---")
-    st.write("💡 アフィリエイトリンク")
-    st.write("航空券の予約はこちらから👇")
-    st.markdown("[スカイスキャナーで探す](https://www.skyscanner.jp/)", unsafe_allow_html=True)
-    st.write("ホテルの予約はこちらから👇")
-    st.markdown("[Booking.comで探す](https://www.booking.com/)", unsafe_allow_html=True)
+    st.header("このアプリについて")
+    st.write("AIがあなたの好みを分析して、おすすめの国を提案します。")
+    st.write("Created by Gemini User")
 
 # 質問フォーム
 with st.form("travel_form"):
@@ -58,55 +46,55 @@ with st.form("travel_form"):
 
 # 診断ボタンが押されたときの処理
 if submitted:
-    if not openai_api_key:
-        st.error("左のサイドバーにOpenAI APIキーを入力してください。")
-    else:
-        # AIへの命令文（プロンプト）を作成
-        prompt = f"""
-        あなたはプロの旅行代理店です。以下の条件のお客様に最適な「海外旅行先（都市名）」を1つだけ提案してください。
-        
-        【条件】
-        - 目的: {purpose}
-        - 予算感: {budget}
-        - 距離希望: {duration}
-        - 同行者: {companion}
-        
-        【出力フォーマット】
-        以下の形式で出力してください。Markdown形式で見やすくしてください。
-        
-        ## ✈️ おすすめの国・都市：[国名・都市名]
-        
-        ### 🌟 おすすめポイント
-        （なぜこの場所が良いのか、魅力的な理由を3つ箇条書きで。感情豊かに。）
-        
-        ### 🍽️ 絶対食べるべきグルメ
-        （具体的な料理名を1つ挙げて解説）
-        
-        ### 📸 映えスポット
-        （写真撮影におすすめの場所を1つ）
-        
-        ### 💡 アドバイス
-        （{companion}で行く場合の注意点や楽しみ方）
-        """
+    # SecretsからAPIキーを読み込む（ユーザーによる入力は不要）
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except:
+        st.error("管理者設定エラー: APIキーが設定されていません。")
+        st.stop()
 
-        # AIに問い合わせ
-        client = OpenAI(api_key=openai_api_key)
-        
-        with st.spinner('AIが最高の旅行先を考えています...🌍'):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini", # コストが安くて賢いモデル
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                result_text = response.choices[0].message.content
-                
-                # 結果を表示
-                st.success("診断完了！")
-                st.markdown(result_text)
-                
-                # アフィリエイト誘導（文脈に合わせて）
-                st.info("👇 気になったらすぐに価格をチェック！")
-                st.markdown(f"[>> {budget}でいける航空券を探す（スカイスキャナー）](https://www.skyscanner.jp/)", unsafe_allow_html=True)
+    # AIへの命令文（プロンプト）
+    prompt = f"""
+    あなたはプロの旅行代理店です。以下の条件のお客様に最適な「海外旅行先（都市名）」を1つだけ提案してください。
+    
+    【条件】
+    - 目的: {purpose}
+    - 予算感: {budget}
+    - 距離希望: {duration}
+    - 同行者: {companion}
+    
+    【出力フォーマット】
+    以下の形式で出力してください。Markdown形式で見やすくしてください。
+    
+    ## ✈️ おすすめの国・都市：[国名・都市名]
+    
+    ### 🌟 おすすめポイント
+    （なぜこの場所が良いのか、魅力的な理由を3つ箇条書きで。感情豊かに。）
+    
+    ### 🍽️ 絶対食べるべきグルメ
+    （具体的な料理名を1つ挙げて解説）
+    
+    ### 📸 映えスポット
+    （写真撮影におすすめの場所を1つ）
+    
+    ### 💡 アドバイス
+    （{companion}で行く場合の注意点や楽しみ方）
+    """
 
-            except Exception as e:
-                st.error(f"エラーが発生しました: {e}")
+    # AIに問い合わせ
+    client = OpenAI(api_key=api_key)
+    
+    with st.spinner('AIが最高の旅行先を考えています...🌍'):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            result_text = response.choices[0].message.content
+            
+            # 結果を表示
+            st.success("診断完了！")
+            st.markdown(result_text)
+            
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
