@@ -1,2 +1,5 @@
 openai
 streamlit
+folium
+requests
+streamlit-folium # foliumをStreamlitで表示するためのライブラリ
