@@ -6,7 +6,7 @@ from streamlit_folium import folium_static
 
 # --- ページ設定 ---
 st.set_page_config(
-    page_title="AI海外旅行コンシェルジュ Premium",
+    page_title="海外旅行コンシェルジュ Premium",
     page_icon="✈️",
     layout="wide"
 )
