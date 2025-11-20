@@ -165,7 +165,7 @@ def get_images(query, serpapi_key, num_images=4):
 # --- メインコンテンツ ---
 col_main, = st.columns(1)
 with col_main:
-    st.markdown("<h1 style='text-align: center;'>  海外旅行コンシェルジュ</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>✈️ AI海外旅行コンシェルジュ Premium</h1>", unsafe_allow_html=True)
     st.markdown("""
         <p style='text-align: center; font-size: 1.1em; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 10px;'>
         あなたの気分や予算に合わせて、世界中からベストな旅先を厳選提案します。
