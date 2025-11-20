@@ -12,7 +12,6 @@ st.set_page_config(
 )
 
 # --- デザイン設定（CSS） ---
-# テキストの折り返しを「最強」の設定にしました
 css_code = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&display=swap');
@@ -22,15 +21,13 @@ html, body, [class*="st-"] {
     color: #1a1a1a;
 }
 
-/* 背景画像 */
+/* 背景画像設定 */
 .stApp {
     background-image: url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop");
     background-size: cover;
     background-attachment: fixed;
     background-position: center;
 }
-
-/* 背景の白フィルター */
 .stApp::before {
     content: "";
     position: absolute;
@@ -65,30 +62,30 @@ div[data-testid="stForm"] {
     backdrop-filter: blur(10px);
 }
 
-/* 結果表示エリア（ここを修正） */
+/* 結果表示エリア */
 .result-box {
-    background: rgba(255, 255, 255, 0.8); /* 読みやすく少し濃く */
+    background: rgba(255, 255, 255, 0.8);
     padding: 40px;
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     margin-top: 30px;
     margin-bottom: 50px;
     backdrop-filter: blur(10px);
-    
-    /* 【重要】枠からはみ出させない設定 */
     width: 100%;
-    box-sizing: border-box; /* パディングを幅に含める */
+    box-sizing: border-box;
 }
 
-/* アプリ内のすべてのテキストに対して強制折り返しを適用 */
-div[data-testid="stMarkdownContainer"] p, 
-div[data-testid="stMarkdownContainer"] li,
-div[data-testid="stMarkdownContainer"] h1,
-div[data-testid="stMarkdownContainer"] h2,
-div[data-testid="stMarkdownContainer"] h3 {
-    overflow-wrap: anywhere !important; /* どんな文字でも端で折り返す */
+/* 全テキスト強制折り返し設定 */
+.result-box *, 
+.result-box p, 
+.result-box li, 
+.result-box h1, 
+.result-box h2, 
+.result-box h3 {
+    overflow-wrap: anywhere !important;
     word-break: break-word !important;
     white-space: normal !important;
+    max-width: 100% !important;
 }
 
 /* ボタン */
@@ -134,17 +131,12 @@ def get_coordinates(location_name, serpapi_key):
     try:
         response = requests.get(url, params=params)
         data = response.json()
-        # Google Mapsの結果判定
-        if "place_results" in data:
-            if isinstance(data["place_results"], dict):
-                gps = data["place_results"].get("gps_coordinates", {})
-                return gps.get("latitude"), gps.get("longitude")
-        # ローカル結果の判定
-        if "local_results" in data:
-            local = data["local_results"]
-            if isinstance(local, list) and len(local) > 0:
-                gps = local[0].get("gps_coordinates", {})
-                return gps.get("latitude"), gps.get("longitude")
+        if "place_results" in data and isinstance(data["place_results"], dict):
+            gps = data["place_results"].get("gps_coordinates", {})
+            return gps.get("latitude"), gps.get("longitude")
+        elif "local_results" in data and isinstance(data["local_results"], list) and len(data["local_results"]) > 0:
+            gps = data["local_results"][0].get("gps_coordinates", {})
+            return gps.get("latitude"), gps.get("longitude")
         return None, None
     except: return None, None
 
@@ -157,8 +149,7 @@ def get_images(query, serpapi_key, num_images=4):
         data = response.json()
         image_urls = []
         if "images_results" in data:
-            results = data["images_results"][:num_images]
-            for item in results:
+            for item in data["images_results"][:num_images]:
                 image_urls.append(item.get("original"))
         return image_urls
     except: return []
@@ -173,7 +164,6 @@ with st.sidebar:
 col_main, = st.columns(1)
 with col_main:
     st.markdown("<h1 style='text-align: center;'>✈️ AI海外旅行コンシェルジュ Premium</h1>", unsafe_allow_html=True)
-    
     st.markdown("""
         <p style='text-align: center; font-size: 1.1em; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 10px;'>
         あなたの気分や予算に合わせて、世界中からベストな旅先を厳選提案します。
@@ -202,81 +192,84 @@ if submitted:
 
     client = OpenAI(api_key=openai_api_key)
     
-    prompt = (
-        f"旅行代理店の超ベテランコンシェルジュとして振る舞ってください。"
-        f"目的:{purpose}, 予算:{budget}, 距離:{duration}, 同行者:{companion} に"
-        f"最も適した「国名または都市名」を1つだけ決めてください。"
-        f"出力は国名のみ（例: イタリア）にしてください。"
-    )
+    # プロンプト（ここを1回にまとめました）
+    # 1行目に国名、2行目以降に記事を書くように指示します
+    prompt = f"""
+    あなたは高級旅行雑誌の編集長です。以下の条件のお客様に最適な海外旅行先を1つ選び、魅力を紹介してください。
+    
+    【条件】
+    目的:{purpose}, 予算:{budget}, 距離:{duration}, 同行者:{companion}
+
+    【非常に重要な出力ルール】
+    1. **1行目には「国名・都市名」のみ**を書いてください（例：イタリア）。余計な記号や「おすすめは〜」などの言葉は不要です。
+    2. **2行目以降**に、その国を紹介する記事をMarkdown形式で書いてください。
+
+    【記事の構成】
+    ### 🌟 なぜここなのか？
+    （魅力を3つのポイントに分けて熱く語ってください）
+
+    ### ✈️ 日本からのアクセス
+    （直行便の有無、フライト時間、主要エアライン、市内へのアクセス）
+
+    ### 🍽️ 五感で味わう絶品グルメ
+    （必ず食べるべき料理を2つ挙げ、味の描写を含めて紹介）
+
+    ### 📸 一生に残るフォトスポット
+    （時間帯や撮影のコツを含めて1箇所紹介）
+
+    ### 💡 旅のコンシェルジュ・メモ
+    （{companion}で行く場合に知っておくべきマナーやヒント）
+    """
     
     ai_country_name = ""
+    article_content = ""
+
     with st.spinner('AIコンシェルジュが世界地図を広げています... 🌍'):
         try:
+            # AIへの問い合わせ（1回のみ）
             response = client.chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=[{"role": "user", "content": prompt}]
             )
-            ai_country_name = response.choices[0].message.content.strip().replace("おすすめの国・都市：", "")
             
-            # 結果表示エリアの開始（CSSクラス result-box を適用）
+            full_text = response.choices[0].message.content.strip()
+            
+            # 1行目（国名）と2行目以降（記事）に分割する
+            if "\n" in full_text:
+                ai_country_name, article_content = full_text.split("\n", 1)
+            else:
+                # 万が一改行がなかった場合の保険
+                ai_country_name = full_text
+                article_content = "詳細情報の取得に失敗しました。"
+
+            ai_country_name = ai_country_name.strip().replace("おすすめの国・都市：", "")
+            
+            # --- ここで初めて画面に表示（すべて同時） ---
             st.markdown('<div class="result-box">', unsafe_allow_html=True)
             
+            # タイトル表示
             st.markdown(
                 f"<h1 style='color: #1565c0; text-align: center;'>"
                 f"あなたへのおすすめ：{ai_country_name}</h1>", 
                 unsafe_allow_html=True
             )
             
-            detail_prompt = f"""
-            あなたは高級旅行雑誌の編集長です。提案された「{ai_country_name}」について、
-            読者が今すぐチケットを予約したくなるような魅力的な記事を書いてください。
+            # 記事表示
+            st.markdown(article_content)
             
-            【必須要件】
-            以下の構成でMarkdown形式で出力してください。箇条書きなどを活用して読みやすくしてください。
-
-            ### 🌟 なぜ {ai_country_name} なのか？
-            （この場所の魅力を3つのポイントに分けて熱く語ってください）
-
-            ### ✈️ 日本からのアクセス
-            （直行便の有無、平均フライト時間、主要エアライン、市内へのアクセス）
-
-            ### 🍽️ 五感で味わう絶品グルメ
-            （必ず食べるべき料理を2つ挙げ、味の描写を含めて紹介）
-
-            ### 📸 一生に残るフォトスポット
-            （時間帯や撮影のコツを含めて1箇所紹介）
-
-            ### 💡 旅のコンシェルジュ・メモ
-            （{companion}で行く場合に知っておくべきマナーやヒント）
-            """
-            
-            detail_res = client.chat.completions.create(
-                model="gpt-4o-mini", 
-                messages=[{"role": "user", "content": detail_prompt}]
-            )
-            
-            # ここでAIの文章を表示
-            st.markdown(detail_res.choices[0].message.content)
-            
-            # 結果表示エリアの終了
             st.markdown('</div>', unsafe_allow_html=True)
             
         except Exception as e:
             st.error(f"エラーが発生しました: {e}")
 
-    if ai_country_name:
+    # 地図と画像の表示（国名が取得できていれば）
+    if ai_country_name and len(ai_country_name) < 20: # あまりに長い文字列は国名じゃない可能性があるので除外
         st.markdown("---")
         st.header(f"📍 {ai_country_name} の場所")
         lat, lng = get_coordinates(ai_country_name, serpapi_api_key)
-        
         if lat:
             m = folium.Map(location=[lat, lng], zoom_start=5)
-            folium.Marker(
-                [lat, lng], 
-                tooltip=ai_country_name, 
-                icon=folium.Icon(color="blue", icon="plane", prefix="fa")
-            ).add_to(m)
-            
+            folium.Marker([lat, lng], tooltip=ai_country_name, icon=folium.Icon(color="blue", icon="plane", prefix="fa")).add_to(m)
             st.markdown("<div class='map-container'>", unsafe_allow_html=True)
             folium_static(m, width=800, height=500)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -284,7 +277,6 @@ if submitted:
         st.markdown("---")
         st.header(f"📷 {ai_country_name} のギャラリー")
         imgs = get_images(ai_country_name + " 観光", serpapi_api_key)
-        
         if imgs:
             cols = st.columns(2)
             for i, url in enumerate(imgs):
