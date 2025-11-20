@@ -5,11 +5,11 @@ import folium
 from streamlit_folium import folium_static
 
 # --- ページ設定 ---
-st.set_page_config(page_title="海外旅行コンシェルジュ Premium", page_icon="✈️", layout="wide")
+st.set_page_config(page_title="AI海外旅行コンシェルジュ Premium", page_icon="✈️", layout="wide")
 
 # --- デザイン設定（CSS） ---
-# 壊れにくいように直接書き込む方式に変更しました
-st.markdown("""
+# ここでデザインを定義します
+css_code = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&display=swap');
 
@@ -49,4 +49,64 @@ div[data-testid="stForm"] {
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
-    border: 1px solid rgba(255, 255, 255,
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+}
+.result-container {
+    background: rgba(255, 255, 255, 0.75);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    margin-top: 30px;
+    margin-bottom: 50px;
+    backdrop-filter: blur(10px);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal; 
+}
+/* 文章の折り返し設定 */
+.result-container p, .result-container li, .result-container h1, .result-container h2, .result-container h3 {
+    word-break: break-word;
+    max-width: 100%;
+}
+.stButton > button {
+    background: linear-gradient(45deg, #1e88e5, #1565c0);
+    color: white;
+    border-radius: 50px;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.2em;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+    width: 100%;
+}
+.stButton > button:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(45deg, #42a5f5, #1e88e5);
+}
+h2 { color: #1565c0; border-bottom: 2px solid rgba(21, 101, 192, 0.3); padding-bottom: 10px; margin-top: 30px; }
+h3 { color: #0277bd; margin-top: 20px; }
+.map-container {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border: 5px solid rgba(255,255,255,0.8);
+}
+</style>
+"""
+# デザインを適用
+st.markdown(css_code, unsafe_allow_html=True)
+
+# --- 関数定義 ---
+def get_coordinates(location_name, serpapi_key):
+    if not serpapi_key: return None, None
+    url = "https://serpapi.com/search"
+    params = {"engine": "google_maps", "q": location_name, "api_key": serpapi_key}
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        if "place_results" in data and isinstance(data["place_results"], dict):
+            gps = data["place_results"].get("gps_coordinates", {})
+            return gps.get("latitude"), gps.get("longitude")
+        elif "local_results" in data and isinstance(data["local_results"], list) and len(data["local_
