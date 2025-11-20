@@ -235,4 +235,52 @@ if submitted:
             full_text = response.choices[0].message.content.strip()
             
             if "\n" in full_text:
-                ai_country_name, article_content = full_text.split("\n",
+                ai_country_name, article_content = full_text.split("\n", 1)
+            else:
+                ai_country_name = full_text
+                article_content = "詳細情報の取得に失敗しました。"
+
+            ai_country_name = ai_country_name.strip().replace("おすすめの国・都市：", "")
+            
+            # 結果表示
+            st.markdown('<div class="result-box">', unsafe_allow_html=True)
+            
+            st.markdown(
+                f"<h1 style='color: #1565c0; text-align: center;'>"
+                f"あなたへのおすすめ：{ai_country_name}</h1>", 
+                unsafe_allow_html=True
+            )
+            st.markdown(article_content)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
+
+    if ai_country_name and len(ai_country_name) < 20:
+        st.markdown("---")
+        st.header(f"📍 {ai_country_name} の場所")
+        lat, lng = get_coordinates(ai_country_name, serpapi_api_key)
+        if lat:
+            m = folium.Map(location=[lat, lng], zoom_start=5)
+            folium.Marker([lat, lng], tooltip=ai_country_name, icon=folium.Icon(color="blue", icon="plane", prefix="fa")).add_to(m)
+            st.markdown("<div class='map-container'>", unsafe_allow_html=True)
+            folium_static(m, width=800, height=500)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.header(f"📷 {ai_country_name} のギャラリー")
+        imgs = get_images(ai_country_name + " 観光", serpapi_api_key)
+        if imgs:
+            cols = st.columns(2)
+            for i, url in enumerate(imgs):
+                with cols[i % 2]:
+                    st.image(url, use_container_width=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+# フッター（ページ最下部）
+st.markdown("---")
+st.markdown("""
+    <p style='text-align: center; color: #333; font-size: 0.8em;'>
+    Created by Gemini User | Powered by OpenAI & SerpAPI
+    </p>
+""", unsafe_allow_html=True)
