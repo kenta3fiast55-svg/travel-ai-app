@@ -165,3 +165,129 @@ def get_images(query, serpapi_key, num_images=4):
 
 # --- サイドバー ---
 with st.sidebar:
+    st.header("✈️ Travel Concierge")
+    st.write("AIがあなたの専属コンシェルジュとなって、最高の旅行プランを提案します。")
+    st.info("Created by Gemini User")
+
+# --- メインコンテンツ ---
+col_main, = st.columns(1)
+with col_main:
+    st.markdown("<h1 style='text-align: center;'>✈️ AI海外旅行コンシェルジュ Premium</h1>", unsafe_allow_html=True)
+    
+    st.markdown("""
+        <p style='text-align: center; font-size: 1.1em; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 10px;'>
+        あなたの気分や予算に合わせて、世界中からベストな旅先を厳選提案します。
+        </p>
+    """, unsafe_allow_html=True)
+
+    with st.form("travel_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            purpose = st.selectbox("Q1. 今回の旅のテーマは？", ["心と体を癒やす究極のリラックス", "現地の美食を食べ尽くすグルメ旅", "歴史とロマンを感じる世界遺産巡り", "最新トレンドとショッピング", "大自然に飛び込む冒険・アクティビティ"])
+            budget = st.select_slider("Q2. 予算のイメージは？", options=["なるべく節約", "平均的", "少し贅沢に", "ハイエンド・ラグジュアリー"])
+        with col2:
+            duration = st.radio("Q3. 移動時間はどれくらい？", ["近場でサクッと（アジア・リゾート）", "中距離（ハワイ・オーストラリア等）", "遠くてもOK（ヨーロッパ・アメリカ等）", "地球の裏側でもどこでも"])
+            companion = st.radio("Q4. どなたと行きますか？", ["気ままな一人旅", "大切なパートナーと", "気心の知れた友人と", "家族みんなで"])
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("✨ 最高の旅先を見つける")
+
+if submitted:
+    try:
+        openai_api_key = st.secrets["OPENAI_API_KEY"]
+        serpapi_api_key = st.secrets["SERPAPI_API_KEY"]
+    except KeyError:
+        st.error("システムエラー: APIキーが設定されていません。")
+        st.stop()
+
+    client = OpenAI(api_key=openai_api_key)
+    
+    prompt = (
+        f"旅行代理店の超ベテランコンシェルジュとして振る舞ってください。"
+        f"目的:{purpose}, 予算:{budget}, 距離:{duration}, 同行者:{companion} に"
+        f"最も適した「国名または都市名」を1つだけ決めてください。"
+        f"出力は国名のみ（例: イタリア）にしてください。"
+    )
+    
+    ai_country_name = ""
+    with st.spinner('AIコンシェルジュが世界地図を広げています... 🌍'):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini", 
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ai_country_name = response.choices[0].message.content.strip().replace("おすすめの国・都市：", "")
+            
+            # 結果表示エリアの開始（CSSクラス result-box を適用）
+            st.markdown('<div class="result-box">', unsafe_allow_html=True)
+            
+            st.markdown(
+                f"<h1 style='color: #1565c0; text-align: center;'>"
+                f"あなたへのおすすめ：{ai_country_name}</h1>", 
+                unsafe_allow_html=True
+            )
+            
+            detail_prompt = f"""
+            あなたは高級旅行雑誌の編集長です。提案された「{ai_country_name}」について、
+            読者が今すぐチケットを予約したくなるような魅力的な記事を書いてください。
+            
+            【必須要件】
+            以下の構成でMarkdown形式で出力してください。箇条書きなどを活用して読みやすくしてください。
+
+            ### 🌟 なぜ {ai_country_name} なのか？
+            （この場所の魅力を3つのポイントに分けて熱く語ってください）
+
+            ### ✈️ 日本からのアクセス
+            （直行便の有無、平均フライト時間、主要エアライン、市内へのアクセス）
+
+            ### 🍽️ 五感で味わう絶品グルメ
+            （必ず食べるべき料理を2つ挙げ、味の描写を含めて紹介）
+
+            ### 📸 一生に残るフォトスポット
+            （時間帯や撮影のコツを含めて1箇所紹介）
+
+            ### 💡 旅のコンシェルジュ・メモ
+            （{companion}で行く場合に知っておくべきマナーやヒント）
+            """
+            
+            detail_res = client.chat.completions.create(
+                model="gpt-4o-mini", 
+                messages=[{"role": "user", "content": detail_prompt}]
+            )
+            
+            # ここでAIの文章を表示
+            st.markdown(detail_res.choices[0].message.content)
+            
+            # 結果表示エリアの終了
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")
+
+    if ai_country_name:
+        st.markdown("---")
+        st.header(f"📍 {ai_country_name} の場所")
+        lat, lng = get_coordinates(ai_country_name, serpapi_api_key)
+        
+        if lat:
+            m = folium.Map(location=[lat, lng], zoom_start=5)
+            folium.Marker(
+                [lat, lng], 
+                tooltip=ai_country_name, 
+                icon=folium.Icon(color="blue", icon="plane", prefix="fa")
+            ).add_to(m)
+            
+            st.markdown("<div class='map-container'>", unsafe_allow_html=True)
+            folium_static(m, width=800, height=500)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.header(f"📷 {ai_country_name} のギャラリー")
+        imgs = get_images(ai_country_name + " 観光", serpapi_api_key)
+        
+        if imgs:
+            cols = st.columns(2)
+            for i, url in enumerate(imgs):
+                with cols[i % 2]:
+                    st.image(url, use_container_width=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
