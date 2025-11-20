@@ -8,7 +8,8 @@ from streamlit_folium import folium_static
 st.set_page_config(
     page_title="AI海外旅行コンシェルジュ Premium",
     page_icon="✈️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed" # サイドバーを最初から閉じておく
 )
 
 # --- デザイン設定（CSS） ---
@@ -38,6 +39,11 @@ html, body, [class*="st-"] {
     background: rgba(255, 255, 255, 0.2);
     pointer-events: none;
     z-index: 0;
+}
+
+/* サイドバーの開閉ボタン（矢印）を完全に隠す */
+[data-testid="stSidebarCollapsedControl"] {
+    display: none;
 }
 
 /* タイトル */
@@ -154,11 +160,7 @@ def get_images(query, serpapi_key, num_images=4):
         return image_urls
     except: return []
 
-# --- サイドバー ---
-with st.sidebar:
-    st.header("✈️ Travel Concierge")
-    st.write("AIがあなたの専属コンシェルジュとなって、最高の旅行プランを提案します。")
-    st.info("Created by Gemini User")
+# --- サイドバーは削除しました ---
 
 # --- メインコンテンツ ---
 col_main, = st.columns(1)
@@ -192,8 +194,7 @@ if submitted:
 
     client = OpenAI(api_key=openai_api_key)
     
-    # プロンプト（ここを1回にまとめました）
-    # 1行目に国名、2行目以降に記事を書くように指示します
+    # プロンプト
     prompt = f"""
     あなたは高級旅行雑誌の編集長です。以下の条件のお客様に最適な海外旅行先を1つ選び、魅力を紹介してください。
     
@@ -226,7 +227,6 @@ if submitted:
 
     with st.spinner('AIコンシェルジュが世界地図を広げています... 🌍'):
         try:
-            # AIへの問い合わせ（1回のみ）
             response = client.chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=[{"role": "user", "content": prompt}]
@@ -234,52 +234,5 @@ if submitted:
             
             full_text = response.choices[0].message.content.strip()
             
-            # 1行目（国名）と2行目以降（記事）に分割する
             if "\n" in full_text:
-                ai_country_name, article_content = full_text.split("\n", 1)
-            else:
-                # 万が一改行がなかった場合の保険
-                ai_country_name = full_text
-                article_content = "詳細情報の取得に失敗しました。"
-
-            ai_country_name = ai_country_name.strip().replace("おすすめの国・都市：", "")
-            
-            # --- ここで初めて画面に表示（すべて同時） ---
-            st.markdown('<div class="result-box">', unsafe_allow_html=True)
-            
-            # タイトル表示
-            st.markdown(
-                f"<h1 style='color: #1565c0; text-align: center;'>"
-                f"あなたへのおすすめ：{ai_country_name}</h1>", 
-                unsafe_allow_html=True
-            )
-            
-            # 記事表示
-            st.markdown(article_content)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
-
-    # 地図と画像の表示（国名が取得できていれば）
-    if ai_country_name and len(ai_country_name) < 20: # あまりに長い文字列は国名じゃない可能性があるので除外
-        st.markdown("---")
-        st.header(f"📍 {ai_country_name} の場所")
-        lat, lng = get_coordinates(ai_country_name, serpapi_api_key)
-        if lat:
-            m = folium.Map(location=[lat, lng], zoom_start=5)
-            folium.Marker([lat, lng], tooltip=ai_country_name, icon=folium.Icon(color="blue", icon="plane", prefix="fa")).add_to(m)
-            st.markdown("<div class='map-container'>", unsafe_allow_html=True)
-            folium_static(m, width=800, height=500)
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.header(f"📷 {ai_country_name} のギャラリー")
-        imgs = get_images(ai_country_name + " 観光", serpapi_api_key)
-        if imgs:
-            cols = st.columns(2)
-            for i, url in enumerate(imgs):
-                with cols[i % 2]:
-                    st.image(url, use_container_width=True)
-                    st.markdown("<br>", unsafe_allow_html=True)
+                ai_country_name, article_content = full_text.split("\n",
